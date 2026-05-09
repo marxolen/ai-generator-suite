@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Generator Suite</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f13; color: #e8e6f0; min-height: 100vh; }
+  .header { background: #18171f; border-bottom: 1px solid #2a2840; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-size: 18px; font-weight: 600; color: #a89cf7; letter-spacing: -0.3px; }
+  .logo span { color: #e8e6f0; }
+  .lang-toggle { display: flex; gap: 2px; background: #0f0f13; border-radius: 8px; padding: 3px; border: 1px solid #2a2840; }
+  .lang-btn { padding: 5px 14px; font-size: 13px; border: none; background: none; border-radius: 6px; cursor: pointer; color: #888; font-family: inherit; transition: all 0.15s; }
+  .lang-btn.active { background: #23213a; color: #e8e6f0; font-weight: 500; }
+  .container { max-width: 720px; margin: 2.5rem auto; padding: 0 1.5rem; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid #2a2840; margin-bottom: 2rem; }
+  .tab { padding: 9px 18px; font-size: 14px; cursor: pointer; border: none; background: none; color: #888; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; font-family: inherit; }
+  .tab.active { color: #a89cf7; border-bottom-color: #7F77DD; font-weight: 500; }
+  .tab:hover:not(.active) { color: #ccc; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .section-title { font-size: 16px; font-weight: 600; color: #e8e6f0; margin-bottom: 4px; }
+  .section-sub { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 10px 14px; font-size: 14px;
+    border: 1px solid #2a2840; border-radius: 8px;
+    background: #18171f; color: #e8e6f0; font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none; border-color: #534AB7;
+  }
+  .field textarea { resize: vertical; min-height: 90px; }
+  .field select { cursor: pointer; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; } }
+  .generate-btn {
+    width: 100%; padding: 12px; background: #534AB7; color: #fff;
+    border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 0.5rem; transition: all 0.15s; font-family: inherit;
+    letter-spacing: 0.2px;
+  }
+  .generate-btn:hover { background: #6257c9; }
+  .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .result-box {
+    margin-top: 1.5rem; padding: 1.5rem;
+    background: #18171f; border-radius: 10px; border: 1px solid #2a2840;
+    font-size: 14px; line-height: 1.8; color: #e8e6f0; white-space: pre-wrap;
+  }
+  .result-box.loading { color: #888; font-style: italic; }
+  .result-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .copy-btn {
+    padding: 7px 16px; font-size: 13px; cursor: pointer;
+    border: 1px solid #2a2840; border-radius: 7px;
+    background: none; color: #888; font-family: inherit;
+    display: none; align-items: center; gap: 6px; transition: all 0.15s;
+  }
+  .copy-btn:hover { border-color: #534AB7; color: #a89cf7; }
+  .copy-btn.visible { display: inline-flex; }
+  .api-key-bar {
+    background: #18171f; border: 1px solid #2a2840; border-radius: 10px;
+    padding: 1rem 1.25rem; margin-bottom: 2rem;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .api-key-bar label { font-size: 13px; color: #888; white-space: nowrap; }
+  .api-key-bar input {
+    flex: 1; min-width: 200px; padding: 8px 12px; font-size: 13px;
+    border: 1px solid #2a2840; border-radius: 7px;
+    background: #0f0f13; color: #e8e6f0; font-family: monospace;
+  }
+  .api-key-bar input:focus { outline: none; border-color: #534AB7; }
+  .api-note { font-size: 12px; color: #555; margin-top: 6px; }
+  a { color: #a89cf7; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">AI <span>Generator Suite</span></div>
+  <div class="lang-toggle">
+    <button class="lang-btn" onclick="setLang('et')">🇪🇪 Eesti</button>
+    <button class="lang-btn active" onclick="setLang('en')">🇬🇧 English</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="api-key-bar">
+    <label id="l-apikey">🔑 OpenAI API võti:</label>
+    <input type="password" id="api-key" placeholder="sk-ant-..." />
+    <p class="api-note" id="api-note">Võti salvestatakse ainult brauseri mälus. <a href="https://platform.openai.com/api-keys" target="_blank">Hangi võti siin →</a></p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('cv')" id="tabl-cv">CV generaator</button>
+    <button class="tab" onclick="switchTab('hind')" id="tabl-hind">Hinnapakkumine</button>
+    <button class="tab" onclick="switchTab('ariplaan')" id="tabl-ariplaan">Äriplaan</button>
+  </div>
+
+  <!-- CV -->
+  <div id="tab-cv" class="panel active">
+    <p class="section-title" id="title-cv">CV generaator</p>
+    <p class="section-sub" id="sub-cv">Täida väljad, AI koostab professionaalse CV</p>
+    <div class="grid-2">
+      <div class="field"><label id="l-cv-nimi">Nimi</label><input id="cv-nimi" placeholder="John Smith" /></div>
+      <div class="field"><label id="l-cv-amet">Amet / positsioon</label><input id="cv-amet" placeholder="Web Architect" /></div>
+    </div>
+    <div class="field"><label id="l-cv-kogemus">Kogemus</label><textarea id="cv-kogemus" placeholder="5 years of front-end development..."></textarea></div>
+    <div class="grid-2">
+      <div class="field"><label id="l-cv-haridus">Haridus</label><input id="cv-haridus" placeholder="MIT, Computer Science, 2018" /></div>
+      <div class="field"><label id="l-cv-oskused">Oskused</label><input id="cv-oskused" placeholder="React, Node.js, Figma" /></div>
+    </div>
+    <div class="field"><label id="l-cv-toon">Toon</label>
+      <select id="cv-toon">
+        <option id="toon1">Professionaalne</option>
+        <option id="toon2">Energiline ja motiveeritud</option>
+        <option id="toon3">Lühike ja konkreetne</option>
+      </select>
+    </div>
+    <button class="generate-btn" id="btn-cv" onclick="generate('cv')">Genereeri CV ↗</button>
+    <div class="result-box" id="result-cv" style="display:none"></div>
+    <div class="result-actions">
+      <button class="copy-btn" id="copy-cv" onclick="copyResult('cv')">📋 <span id="copy-cv-label">Kopeeri</span></button>
+    </div>
+  </div>
+
+  <!-- Hinnapakkumine -->
+  <div id="tab-hind" class="panel">
+    <p class="section-title" id="title-hind">Hinnapakkumise generaator</p>
+    <p class="section-sub" id="sub-hind">Sisesta projekti andmed, AI koostab professionaalse pakkumise</p>
+    <div class="grid-2">
+      <div class="field"><label id="l-h-klient">Klient</label><input id="h-klient" placeholder="Acme Ltd" /></div>
+      <div class="field"><label id="l-h-firma">Sinu ettevõte</label><input id="h-firma" placeholder="Marxi Studio" /></div>
+    </div>
+    <div class="field"><label id="l-h-tood">Teenuse kirjeldus</label><textarea id="h-tood" placeholder="Logo design + brand package..."></textarea></div>
+    <div class="grid-2">
+      <div class="field"><label id="l-h-hind">Hind (€)</label><input id="h-hind" type="number" placeholder="499" /></div>
+      <div class="field"><label id="l-h-tahtaeg">Tähtaeg</label><input id="h-tahtaeg" placeholder="2 weeks" /></div>
+    </div>
+    <div class="field"><label id="l-h-lisa">Lisainfo</label><input id="h-lisa" placeholder="Includes 2 revision rounds..." /></div>
+    <button class="generate-btn" id="btn-hind" onclick="generate('hind')">Genereeri pakkumine ↗</button>
+    <div class="result-box" id="result-hind" style="display:none"></div>
+    <div class="result-actions">
+      <button class="copy-btn" id="copy-hind" onclick="copyResult('hind')">📋 <span id="copy-hind-label">Kopeeri</span></button>
+    </div>
+  </div>
+
+  <!-- Äriplaan -->
+  <div id="tab-ariplaan" class="panel">
+    <p class="section-title" id="title-ariplaan">Äriplaani generaator</p>
+    <p class="section-sub" id="sub-ariplaan">AI koostab struktureeritud äriplaani sinu idee põhjal</p>
+    <div class="grid-2">
+      <div class="field"><label id="l-a-nimi">Äri nimi</label><input id="a-nimi" placeholder="GreenMarket" /></div>
+      <div class="field"><label id="l-a-valdkond">Valdkond</label><input id="a-valdkond" placeholder="E-commerce" /></div>
+    </div>
+    <div class="field"><label id="l-a-idee">Idee kirjeldus</label><textarea id="a-idee" placeholder="Farmers sell directly to consumers online..."></textarea></div>
+    <div class="grid-2">
+      <div class="field"><label id="l-a-turg">Sihtturg</label><input id="a-turg" placeholder="Local consumers, 25-50 years" /></div>
+      <div class="field"><label id="l-a-eelarve">Eelarve (€)</label><input id="a-eelarve" placeholder="5000" /></div>
+    </div>
+    <div class="field"><label id="l-a-valjakutsed">Väljakutsed</label><input id="a-valjakutsed" placeholder="Competition, logistics..." /></div>
+    <button class="generate-btn" id="btn-ariplaan" onclick="generate('ariplaan')">Genereeri äriplaan ↗</button>
+    <div class="result-box" id="result-ariplaan" style="display:none"></div>
+    <div class="result-actions">
+      <button class="copy-btn" id="copy-ariplaan" onclick="copyResult('ariplaan')">📋 <span id="copy-ariplaan-label">Kopeeri</span></button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let lang = 'en';
+window.addEventListener('DOMContentLoaded', () => setLang('en'));
+
+const t = {
+  et: {
+    tabs: ['CV generaator','Hinnapakkumine','Äriplaan'],
+    titles: ['CV generaator','Hinnapakkumise generaator','Äriplaani generaator'],
+    subs: ['Täida väljad, AI koostab professionaalse CV','Sisesta projekti andmed, AI koostab professionaalse pakkumise','AI koostab struktureeritud äriplaani sinu idee põhjal'],
+    cv: ['Nimi','Amet / positsioon','Kogemus','Haridus','Oskused','Toon'],
+    tones: ['Professionaalne','Energiline ja motiveeritud','Lühike ja konkreetne'],
+    hind: ['Klient','Sinu ettevõte','Teenuse kirjeldus','Hind (€)','Tähtaeg','Lisainfo'],
+    ariplaan: ['Äri nimi','Valdkond','Idee kirjeldus','Sihtturg','Eelarve (€)','Väljakutsed'],
+    btns: ['Genereeri CV ↗','Genereeri pakkumine ↗','Genereeri äriplaan ↗'],
+    loading: 'AI mõtleb... hetk palun',
+    copy: 'Kopeeri', copied: 'Kopeeritud!',
+    apikey: '🔑 OpenAI API võti:',
+    apinote: 'Võti salvestatakse ainult brauseri mälus.'
+  },
+  en: {
+    tabs: ['CV Generator','Quote Generator','Business Plan'],
+    titles: ['CV Generator','Quote Generator','Business Plan Generator'],
+    subs: ['Fill in the fields, AI creates a professional CV','Enter project details, AI creates a professional quote','AI creates a structured business plan from your idea'],
+    cv: ['Full name','Job title','Experience','Education','Skills','Tone'],
+    tones: ['Professional','Energetic and motivated','Short and concise'],
+    hind: ['Client','Your company','Service description','Price (€)','Deadline','Additional info'],
+    ariplaan: ['Business name','Industry','Idea description','Target market','Budget (€)','Key challenges'],
+    btns: ['Generate CV ↗','Generate quote ↗','Generate business plan ↗'],
+    loading: 'AI is thinking... please wait',
+    copy: 'Copy', copied: 'Copied!',
+    apikey: '🔑 OpenAI API key:',
+    apinote: 'Key is stored in browser memory only.'
+  }
+};
+
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach((b,i) => b.classList.toggle('active', i===(l==='et'?0:1)));
+  const tx = t[l];
+  ['cv','hind','ariplaan'].forEach((tab,i) => {
+    document.getElementById('tabl-'+tab).textContent = tx.tabs[i];
+    document.getElementById('title-'+tab).textContent = tx.titles[i];
+    document.getElementById('sub-'+tab).textContent = tx.subs[i];
+    document.getElementById('btn-'+tab).textContent = tx.btns[i];
+  });
+  ['cv-nimi','cv-amet','cv-kogemus','cv-haridus','cv-oskused','cv-toon'].forEach((id,i) => {
+    const el = document.getElementById('l-'+id); if(el) el.textContent = tx.cv[i];
+  });
+  ['toon1','toon2','toon3'].forEach((id,i) => {
+    const el = document.getElementById(id); if(el) el.textContent = tx.tones[i];
+  });
+  ['h-klient','h-firma','h-tood','h-hind','h-tahtaeg','h-lisa'].forEach((id,i) => {
+    const el = document.getElementById('l-'+id); if(el) el.textContent = tx.hind[i];
+  });
+  ['a-nimi','a-valdkond','a-idee','a-turg','a-eelarve','a-valjakutsed'].forEach((id,i) => {
+    const el = document.getElementById('l-'+id); if(el) el.textContent = tx.ariplaan[i];
+  });
+  ['cv','hind','ariplaan'].forEach(tab => {
+    const el = document.getElementById('copy-'+tab+'-label'); if(el) el.textContent = tx.copy;
+  });
+  document.getElementById('l-apikey').textContent = tx.apikey;
+  document.getElementById('api-note').innerHTML = tx.apinote + ' <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys →</a>';
+}
+
+function switchTab(tab) {
+  const tabs = ['cv','hind','ariplaan'];
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function getPrompt(type) {
+  const isEn = lang === 'en';
+  if (type === 'cv') {
+    return isEn
+      ? `Create a professional CV in English:\nName: ${document.getElementById('cv-nimi').value}\nTitle: ${document.getElementById('cv-amet').value}\nExperience: ${document.getElementById('cv-kogemus').value}\nEducation: ${document.getElementById('cv-haridus').value}\nSkills: ${document.getElementById('cv-oskused').value}\nTone: ${document.getElementById('cv-toon').value}\n\nStructure: Summary, Work Experience, Education, Skills.`
+      : `Koosta professionaalne CV eesti keeles:\nNimi: ${document.getElementById('cv-nimi').value}\nAmet: ${document.getElementById('cv-amet').value}\nKogemus: ${document.getElementById('cv-kogemus').value}\nHaridus: ${document.getElementById('cv-haridus').value}\nOskused: ${document.getElementById('cv-oskused').value}\nToon: ${document.getElementById('cv-toon').value}\n\nOsad: Kokkuvõte, Töökogemus, Haridus, Oskused.`;
+  }
+  if (type === 'hind') {
+    return isEn
+      ? `Create a professional quote in English:\nClient: ${document.getElementById('h-klient').value}\nProvider: ${document.getElementById('h-firma').value}\nServices: ${document.getElementById('h-tood').value}\nPrice: ${document.getElementById('h-hind').value}€\nDeadline: ${document.getElementById('h-tahtaeg').value}\nNotes: ${document.getElementById('h-lisa').value}\n\nInclude: intro, service list, pricing breakdown, terms and conditions.`
+      : `Koosta professionaalne hinnapakkumine eesti keeles:\nKlient: ${document.getElementById('h-klient').value}\nPakkuja: ${document.getElementById('h-firma').value}\nTeenused: ${document.getElementById('h-tood').value}\nHind: ${document.getElementById('h-hind').value}€\nTähtaeg: ${document.getElementById('h-tahtaeg').value}\nLisainfo: ${document.getElementById('h-lisa').value}\n\nSisalda: sissejuhatus, teenuste nimekiri, maksumus, tingimused.`;
+  }
+  if (type === 'ariplaan') {
+    return isEn
+      ? `Create a structured business plan in English:\nBusiness: ${document.getElementById('a-nimi').value}\nIndustry: ${document.getElementById('a-valdkond').value}\nIdea: ${document.getElementById('a-idee').value}\nTarget market: ${document.getElementById('a-turg').value}\nBudget: ${document.getElementById('a-eelarve').value}€\nChallenges: ${document.getElementById('a-valjakutsed').value}\n\nSections: 1) Overview 2) Market & Competition 3) Product/Service 4) Marketing 5) Financials 6) Risks`
+      : `Koosta struktureeritud äriplaan eesti keeles:\nÄri: ${document.getElementById('a-nimi').value}\nValdkond: ${document.getElementById('a-valdkond').value}\nIdee: ${document.getElementById('a-idee').value}\nSihtturg: ${document.getElementById('a-turg').value}\nEelarve: ${document.getElementById('a-eelarve').value}€\nVäljakutsed: ${document.getElementById('a-valjakutsed').value}\n\nOsad: 1) Ülevaade 2) Turg ja konkurents 3) Toode/teenus 4) Turundus 5) Finantsid 6) Riskid`;
+  }
+}
+
+async function generate(type) {
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey) {
+    alert(lang === 'et' ? 'Palun sisesta Anthropic API võti!' : 'Please enter your Anthropic API key!');
+    return;
+  }
+  const btn = document.getElementById('btn-'+type);
+  const box = document.getElementById('result-'+type);
+  const copyBtn = document.getElementById('copy-'+type);
+  const tx = t[lang];
+
+  btn.disabled = true;
+  box.style.display = 'block';
+  box.className = 'result-box loading';
+  box.textContent = tx.loading;
+  copyBtn.classList.remove('visible');
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: getPrompt(type) }]
+      })
+    });
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || (lang==='et' ? 'Viga: vastust ei saadud.' : 'Error: no response.');
+    box.className = 'result-box';
+    box.textContent = text;
+    copyBtn.classList.add('visible');
+  } catch(e) {
+    box.className = 'result-box';
+    box.textContent = (lang==='et' ? 'Viga: ' : 'Error: ') + e.message;
+  }
+
+  btn.disabled = false;
+  const tabs = ['cv','hind','ariplaan'];
+  document.getElementById('btn-'+type).textContent = tx.btns[tabs.indexOf(type)];
+}
+
+function copyResult(type) {
+  const text = document.getElementById('result-'+type).textContent;
+  navigator.clipboard.writeText(text);
+  const lbl = document.getElementById('copy-'+type+'-label');
+  lbl.textContent = t[lang].copied;
+  setTimeout(() => { lbl.textContent = t[lang].copy; }, 1500);
+}
+</script>
+</body>
+</html>
